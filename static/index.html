@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Desk — Crypto Analysis</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #131a24;
+    --line: #223042;
+    --text: #d8e1ec;
+    --dim: #6b7d93;
+    --amber: #e8a33d;
+    --green: #3ecf8e;
+    --red: #e8546b;
+    --mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+  header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0;
+    color: var(--text);
+  }
+  header h1 span { color: var(--amber); }
+  header .tag { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 1px; background: var(--line); }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .col { background: var(--bg); padding: 24px 28px; }
+
+  .controls { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+  input, select, button {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 4px;
+  }
+  input { width: 140px; text-transform: uppercase; }
+  button {
+    cursor: pointer;
+    background: var(--amber);
+    color: #1a1204;
+    border: none;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  button:hover { opacity: 0.85; }
+  button.ghost {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .score-card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 24px;
+    background: var(--panel);
+    margin-bottom: 20px;
+  }
+  .score-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .score-num { font-family: var(--mono); font-size: 42px; font-weight: 700; line-height: 1; }
+  .score-num.long { color: var(--green); }
+  .score-num.short { color: var(--red); }
+  .score-num.neutral { color: var(--dim); }
+  .direction-badge {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .direction-badge.long { background: rgba(62,207,142,0.15); color: var(--green); }
+  .direction-badge.short { background: rgba(232,84,107,0.15); color: var(--red); }
+  .direction-badge.neutral { background: rgba(107,125,147,0.15); color: var(--dim); }
+  .price-line { font-family: var(--mono); color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .reasoning-list { list-style: none; padding: 0; margin: 18px 0 0; }
+  .reasoning-list li {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--dim);
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+    line-height: 1.5;
+  }
+  .reasoning-list li:first-child { border-top: none; }
+  .reasoning-list li b { color: var(--text); }
+
+  .disclaimer {
+    font-size: 11.5px;
+    color: var(--dim);
+    border-left: 2px solid var(--amber);
+    padding: 10px 14px;
+    margin-top: 18px;
+    background: rgba(232,163,61,0.06);
+  }
+
+  h2 { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 0 0 14px; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .stat {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px;
+    background: var(--panel);
+  }
+  .stat .label { font-family: var(--mono); font-size: 10.5px; color: var(--dim); text-transform: uppercase; }
+  .stat .value { font-family: var(--mono); font-size: 20px; font-weight: 600; margin-top: 4px; }
+
+  .trade-item {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--panel);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .trade-item .top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .trade-item .sym { font-weight: 700; }
+  .trade-item .dir.LONG { color: var(--green); }
+  .trade-item .dir.SHORT { color: var(--red); }
+  .trade-item .meta { color: var(--dim); }
+  .trade-item .pnl.pos { color: var(--green); }
+  .trade-item .pnl.neg { color: var(--red); }
+
+  .empty { color: var(--dim); font-family: var(--mono); font-size: 12.5px; padding: 20px 0; }
+  .loading { color: var(--amber); font-family: var(--mono); font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SIGNAL<span>DESK</span></h1>
+  <div class="tag">paper trading · rule-based analysis · not financial advice</div>
+</header>
+
+<div class="layout">
+  <div class="col">
+    <div class="controls">
+      <input id="symbol" value="BTCUSDT" placeholder="BTCUSDT" />
+      <select id="interval">
+        <option value="15m">15m</option>
+        <option value="1h" selected>1h</option>
+        <option value="4h">4h</option>
+        <option value="1d">1d</option>
+      </select>
+      <button id="analyzeBtn" onclick="runAnalysis()">Analyze</button>
+      <button class="ghost" onclick="runAnalysis(true)">Analyze + Paper Trade</button>
+      <button class="ghost" id="commentaryBtn" onclick="runAnalysis(false, true)">+ Analyst Note</button>
+    </div>
+
+    <div id="result"></div>
+
+    <h2 style="margin-top:32px;">Daily Watchlist</h2>
+    <div class="controls">
+      <input id="watchSymbol" placeholder="ADAUSDT" />
+      <button class="ghost" onclick="addToWatchlist()">Add to Watchlist</button>
+      <button class="ghost" onclick="runDailyNow()">Run Daily Analysis Now</button>
+    </div>
+    <div id="watchlistDiv" class="empty">Loading watchlist…</div>
+
+    <h2 style="margin-top:32px;">Daily Briefs</h2>
+    <div id="briefsDiv" class="empty">No briefs yet — add symbols to the watchlist and run daily analysis.</div>
+  </div>
+
+  <div class="col">
+    <h2>Paper Account</h2>
+    <div class="stat-grid" id="statGrid">
+      <div class="stat"><div class="label">Balance</div><div class="value" id="balance">—</div></div>
+      <div class="stat"><div class="label">Total P&amp;L</div><div class="value" id="totalPnl">—</div></div>
+      <div class="stat"><div class="label">Win Rate</div><div class="value" id="winRate">—</div></div>
+      <div class="stat"><div class="label">Trades Closed</div><div class="value" id="tradeCount">—</div></div>
+    </div>
+
+    <h2>Open Positions</h2>
+    <div id="openTrades" class="empty">No open positions.</div>
+
+    <h2 style="margin-top:24px;">Adaptive Weights</h2>
+    <div id="weightsDiv" class="empty">Loading…</div>
+  </div>
+</div>
+
+<script>
+const API = "";
+
+async function runAnalysis(withTrade = false, withCommentary = false) {
+  const symbol = document.getElementById('symbol').value.trim().toUpperCase();
+  const interval = document.getElementById('interval').value;
+  const resultDiv = document.getElementById('result');
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  resultDiv.innerHTML = '<div class="loading">Fetching chart data, computing indicators, scanning news…</div>';
+
+  try {
+    let data;
+    if (withTrade) {
+      const res = await fetch(`${API}/api/paper-trade/open?symbol=${symbol}&interval=${interval}`, { method: 'POST' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail || 'Request failed');
+      data = body.signal;
+    } else {
+      const res = await fetch(`${API}/api/analyze/${symbol}?interval=${interval}&with_commentary=${withCommentary}`);
+      data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Request failed');
+    }
+    renderSignal(data);
+    loadPortfolio();
+    loadWeights();
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="empty">Error: ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderSignal(data) {
+  const dirClass = data.direction.includes('LONG') ? 'long' : data.direction.includes('SHORT') ? 'short' : 'neutral';
+  const reasoningHtml = data.reasoning.map(r => {
+    const [label, ...rest] = r.split(': ');
+    return `<li><b>${label}</b>: ${rest.join(': ')}</li>`;
+  }).join('');
+
+  const commentaryHtml = data.llm_commentary
+    ? `<div class="disclaimer" style="border-color: var(--green); background: rgba(62,207,142,0.06);">${data.llm_commentary}</div>`
+    : (data.llm_commentary === null ? `<div class="disclaimer">Analyst note unavailable — set ANTHROPIC_API_KEY to enable it.</div>` : '');
+
+  document.getElementById('result').innerHTML = `
+    <div class="score-card">
+      <div class="score-row">
+        <div class="score-num ${dirClass}">${data.score > 0 ? '+' : ''}${data.score}</div>
+        <div>
+          <div class="direction-badge ${dirClass}">${data.direction}</div>
+          <div class="price-line">${data.symbol} @ $${data.price.toLocaleString(undefined, {maximumFractionDigits: 6})} · confidence ${data.confidence}%</div>
+        </div>
+      </div>
+      <ul class="reasoning-list">${reasoningHtml}</ul>
+      ${commentaryHtml}
+      <div class="disclaimer">${data.disclaimer}</div>
+    </div>
+  `;
+}
+
+async function addToWatchlist() {
+  const symbol = document.getElementById('watchSymbol').value.trim().toUpperCase();
+  if (!symbol) return;
+  await fetch(`${API}/api/watchlist?symbol=${symbol}`, { method: 'POST' });
+  document.getElementById('watchSymbol').value = '';
+  loadWatchlist();
+}
+
+async function removeFromWatchlist(id) {
+  await fetch(`${API}/api/watchlist/${id}`, { method: 'DELETE' });
+  loadWatchlist();
+}
+
+async function loadWatchlist() {
+  const res = await fetch(`${API}/api/watchlist`);
+  const items = await res.json();
+  const div = document.getElementById('watchlistDiv');
+  if (items.length === 0) {
+    div.className = 'empty';
+    div.textContent = 'No coins on the watchlist yet — add one above.';
+    return;
+  }
+  div.className = '';
+  div.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + items.map(w => `
+    <span style="font-family: var(--mono); font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; display:flex; align-items:center; gap:8px;">
+      ${w.symbol}
+      <span style="cursor:pointer; color: var(--red);" onclick="removeFromWatchlist(${w.id})">×</span>
+    </span>
+  `).join('') + `</div>`;
+}
+
+async function runDailyNow() {
+  const div = document.getElementById('briefsDiv');
+  div.className = 'loading';
+  div.textContent = 'Running daily analysis across the watchlist (this can take a moment per symbol)…';
+  try {
+    await fetch(`${API}/api/run-daily-analysis-now`, { method: 'POST' });
+    loadBriefs();
+    loadPortfolio();
+  } catch (err) {
+    div.className = 'empty';
+    div.textContent = 'Error running daily analysis: ' + err.message;
+  }
+}
+
+async function loadBriefs() {
+  const res = await fetch(`${API}/api/daily-briefs`);
+  const briefs = await res.json();
+  const div = document.getElementById('briefsDiv');
+  if (briefs.length === 0) {
+    div.className = 'empty';
+    div.textContent = 'No briefs yet — add symbols to the watchlist and run daily analysis.';
+    return;
+  }
+  div.className = '';
+  div.innerHTML = briefs.map(b => {
+    const dirClass = b.direction.includes('LONG') ? 'long' : b.direction.includes('SHORT') ? 'short' : 'neutral';
+    return `
+      <div class="score-card" style="padding:16px; margin-bottom:12px;">
+        <div class="score-row" style="margin-bottom:10px;">
+          <div class="direction-badge ${dirClass}">${b.direction}</div>
+          <div class="price-line">${b.symbol} · score ${b.signal_score} · ${b.traded === 'YES' ? 'paper-traded' : 'no trade'} · ${new Date(b.created_at).toLocaleString()}</div>
+        </div>
+        <div style="font-size:13px; color: var(--text); line-height:1.5;">${b.llm_commentary}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadWeights() {
+  const res = await fetch(`${API}/api/weights`);
+  const weights = await res.json();
+  const div = document.getElementById('weightsDiv');
+  div.className = '';
+  div.innerHTML = Object.entries(weights).map(([name, w]) => `
+    <div class="trade-item">
+      <div class="top">
+        <span class="sym">${name.toUpperCase()}</span>
+        <span class="meta">${w.adapted ? 'adapted' : 'default'}</span>
+      </div>
+      <div class="meta">weight ${w.current_weight} (default ${w.default_weight}) · accuracy ${w.accuracy_pct !== null ? w.accuracy_pct + '%' : '—'} · n=${w.sample_size}</div>
+    </div>
+  `).join('');
+}
+
+async function loadPortfolio() {
+  const res = await fetch(`${API}/api/portfolio`);
+  const p = await res.json();
+
+  document.getElementById('balance').textContent = '$' + p.balance_usd.toLocaleString();
+  const pnlEl = document.getElementById('totalPnl');
+  pnlEl.textContent = (p.total_pnl >= 0 ? '+$' : '-$') + Math.abs(p.total_pnl).toLocaleString();
+  pnlEl.style.color = p.total_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('winRate').textContent = p.win_rate_pct + '%';
+  document.getElementById('tradeCount').textContent = p.total_trades;
+
+  const openDiv = document.getElementById('openTrades');
+  if (p.open_trades.length === 0) {
+    openDiv.className = 'empty';
+    openDiv.textContent = 'No open positions.';
+  } else {
+    openDiv.className = '';
+    openDiv.innerHTML = p.open_trades.map(t => `
+      <div class="trade-item">
+        <div class="top">
+          <span class="sym">${t.symbol}</span>
+          <span class="dir ${t.direction}">${t.direction}</span>
+        </div>
+        <div class="meta">entry $${t.entry_price.toFixed(2)} · qty ${t.quantity}</div>
+        <button class="ghost" style="margin-top:8px; width:100%;" onclick="closeTrade(${t.id})">Close Position</button>
+      </div>
+    `).join('');
+  }
+}
+
+async function closeTrade(id) {
+  await fetch(`${API}/api/paper-trade/close/${id}`, { method: 'POST' });
+  loadPortfolio();
+}
+
+loadPortfolio();
+loadWatchlist();
+loadBriefs();
+loadWeights();
+</script>
+
+</body>
+</html>
