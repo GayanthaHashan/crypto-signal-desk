@@ -18,7 +18,7 @@ quantitative signal without commentary — everything else still works.
 """
 import os
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.6-flash"
 ANTHROPIC_MODEL = "claude-sonnet-5"
 
 
